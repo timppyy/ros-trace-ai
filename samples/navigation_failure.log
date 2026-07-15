@@ -1,0 +1,7 @@
+[INFO] [1712345678.100] [planner_server]: Activating local planner
+[WARN] [1712345678.250] [controller_server]: Costmap update loop missed its desired rate
+[ERROR] [1712345678.420] [bt_navigator]: Lookup would require extrapolation into the future. Requested time 1712345678.420 but the latest data is at time 1712345678.110, when looking up transform from frame [base_link] to frame [map]
+[ERROR] [1712345678.520] [bt_navigator]: Lookup would require extrapolation into the future. Requested time 1712345678.520 but the latest data is at time 1712345678.110, when looking up transform from frame [base_link] to frame [map]
+[WARN] [1712345679.000] [velocity_smoother]: No publishers available for topic /cmd_vel_nav
+[ERROR] [1712345680.200] [controller_server]: Action server timed out waiting for /compute_path_to_pose
+[ERROR] [1712345681.000] [launch]: process has died [pid 4217, exit code -11, cmd '/opt/ros/humble/lib/nav2_controller/controller_server']

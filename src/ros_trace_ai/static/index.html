@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ROS-Trace AI turns ROS logs into an incident timeline, evidence, and actionable fixes.">
+  <title>ROS-Trace AI · Incident analysis for ROS</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to workspace</a>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="ROS-Trace AI home">
+      <span class="brand-mark" aria-hidden="true"><span></span></span>
+      <span><strong>ROS-TRACE</strong><small>AI INCIDENT ANALYZER</small></span>
+    </a>
+    <div class="header-meta">
+      <span class="status-pill"><span class="status-dot"></span>Offline Sandbox</span>
+      <span class="model-pill">GPT-5.6 READY</span>
+      <a class="github-link" href="https://github.com/" target="_blank" rel="noreferrer" aria-label="View project source">SOURCE ↗</a>
+    </div>
+  </header>
+
+  <main id="workspace">
+    <section class="hero" aria-labelledby="hero-title">
+      <p class="eyebrow"><span>01</span> ROBOT OBSERVABILITY, EXPLAINED</p>
+      <h1 id="hero-title">From noisy logs to<br><em>actionable incidents.</em></h1>
+      <p class="hero-copy">Paste ROS1 or ROS2 logs. Get a deterministic failure timeline, root-cause evidence, and commands your team can run next — no robot or cloud connection required.</p>
+      <div class="hero-stats" aria-label="Product capabilities">
+        <span><strong>ROS 1 + 2</strong> compatible</span><span><strong>LOCAL-FIRST</strong> analysis</span><span><strong>ZERO SETUP</strong> demo</span>
+      </div>
+    </section>
+
+    <section class="input-panel panel" aria-labelledby="input-title">
+      <div class="panel-heading">
+        <div>
+          <p class="section-index">INPUT / 01</p>
+          <h2 id="input-title">Log workspace</h2>
+        </div>
+        <div class="input-actions">
+          <input id="file-input" type="file" accept=".log,.txt,text/plain" hidden>
+          <button id="upload-button" class="button button-secondary" type="button" aria-describedby="file-help">
+            <span aria-hidden="true">↑</span> Upload log
+          </button>
+          <button id="sample-button" class="button button-secondary" type="button">
+            <span aria-hidden="true">⌁</span> Load sample
+          </button>
+        </div>
+      </div>
+
+      <div class="editor-shell">
+        <div class="editor-bar">
+          <span><i></i><i></i><i></i></span>
+          <span id="file-name">untitled.log</span>
+          <span id="line-count">0 lines</span>
+        </div>
+        <label class="sr-only" for="log-input">ROS log text</label>
+        <textarea id="log-input" spellcheck="false" placeholder="Paste ROS logs here…&#10;&#10;[ERROR] [planner_server]: Failed to create plan to goal&#10;[WARN] [controller_server]: Costmap update loop missed rate"></textarea>
+      </div>
+      <p id="file-help" class="input-hint"><span>TIP</span> Drop a .log or .txt file anywhere in this workspace. Your data stays in this process.</p>
+
+      <div class="run-bar">
+        <label class="ai-toggle">
+          <input id="ai-toggle" type="checkbox">
+          <span class="toggle-track" aria-hidden="true"><span></span></span>
+          <span><strong>AI enrichment</strong><small>Optional GPT-5.6 root-cause reasoning</small></span>
+        </label>
+        <button id="analyze-button" class="button button-primary" type="button">
+          <span class="button-label">Analyze trace</span><span class="button-arrow" aria-hidden="true">→</span>
+        </button>
+      </div>
+      <div id="error-banner" class="error-banner" role="alert" hidden></div>
+    </section>
+
+    <section id="results" class="results" aria-labelledby="results-title" aria-live="polite" aria-busy="false">
+      <div class="results-heading">
+        <div><p class="section-index">ANALYSIS / 02</p><h2 id="results-title">Trace intelligence</h2></div>
+        <span id="analysis-state" class="analysis-state">AWAITING INPUT</span>
+      </div>
+
+      <div id="metrics" class="metrics" aria-label="Analysis metrics">
+        <article class="metric metric-error"><span class="metric-icon">×</span><div><strong id="error-count">—</strong><span>Errors</span></div></article>
+        <article class="metric metric-warning"><span class="metric-icon">!</span><div><strong id="warning-count">—</strong><span>Warnings</span></div></article>
+        <article class="metric metric-node"><span class="metric-icon">◇</span><div><strong id="node-count">—</strong><span>Nodes seen</span></div></article>
+        <article class="metric metric-incident"><span class="metric-icon">↯</span><div><strong id="incident-count">—</strong><span>Incidents</span></div></article>
+      </div>
+
+      <div id="empty-state" class="empty-state panel">
+        <div class="radar" aria-hidden="true"><span></span><i></i></div>
+        <div><p class="section-index">SYSTEM STANDBY</p><h3>No trace analyzed yet</h3><p>Load the curated navigation failure sample or paste your own logs above. Incidents will appear here in chronological order with supporting evidence and recommended fixes.</p></div>
+        <button id="empty-sample-button" class="text-button" type="button">Explore the sample trace <span>→</span></button>
+      </div>
+
+      <div id="loading-state" class="loading-state panel" hidden>
+        <div class="loader" aria-hidden="true"></div><div><h3>Reconstructing incident timeline</h3><p>Parsing nodes, correlating signals, and ranking probable causes…</p></div>
+      </div>
+
+      <div id="analysis-content" hidden>
+        <div class="analysis-layout">
+          <section class="timeline-panel panel" aria-labelledby="timeline-title">
+            <div class="subheading"><div><p class="section-index">CORRELATED EVENTS</p><h3 id="timeline-title">Incident timeline</h3></div><span id="timeline-span"></span></div>
+            <ol id="incident-list" class="incident-list"></ol>
+          </section>
+          <aside class="context-panel panel" aria-labelledby="context-title">
+            <p class="section-index">TRACE CONTEXT</p><h3 id="context-title">System footprint</h3>
+            <div id="node-list" class="node-list"></div>
+            <div class="privacy-note"><span aria-hidden="true">⌾</span><p><strong>Local analysis</strong>Logs are processed by this sandbox. AI is only contacted when enrichment is enabled.</p></div>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer><span>ROS-TRACE AI</span><p>Built for engineers debugging systems that move.</p><span>LOCAL / DETERMINISTIC / EXPLAINABLE</span></footer>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
