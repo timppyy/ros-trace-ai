@@ -114,6 +114,58 @@ function incidentCard(incident) {
   return item;
 }
 
+function renderAiAnalysis(payload) {
+  const ai = payload.ai || {
+    requested: Boolean(payload.ai_used || payload.ai_error),
+    used: Boolean(payload.ai_used),
+    status: payload.ai_used ? "succeeded" : "not_requested",
+    model: "GPT",
+    analysis: payload.ai_analysis,
+    error: payload.ai_error || null,
+  };
+  const panel = $("ai-panel");
+  const status = $("ai-status-detail");
+  const steps = $("ai-next-steps");
+  steps.replaceChildren();
+
+  if (!ai.requested && !ai.used) {
+    panel.hidden = true;
+    $("ai-root-cause").textContent = "";
+    $("ai-confidence").textContent = "—";
+    status.textContent = "";
+    return;
+  }
+
+  panel.hidden = false;
+  const contractAnalysis = payload.ai ? payload.ai.analysis : null;
+  const analysis = contractAnalysis || payload.ai_analysis;
+  if (ai.used && analysis) {
+    $("ai-root-cause").textContent = text(analysis.root_cause, "No root cause returned.");
+    const confidence = Number(analysis.confidence);
+    $("ai-confidence").textContent = Number.isFinite(confidence)
+      ? `${Math.round(confidence * 100)}% confidence`
+      : "Confidence unavailable";
+    status.textContent = `${ai.model || "AI"} enrichment completed.`;
+    (analysis.next_steps || []).forEach((step) => {
+      const item = document.createElement("li");
+      item.textContent = step;
+      steps.append(item);
+    });
+    if (!steps.children.length) {
+      const item = document.createElement("li");
+      item.textContent = "Review the deterministic incident recommendations.";
+      steps.append(item);
+    }
+  } else {
+    $("ai-root-cause").textContent = "AI enrichment did not run.";
+    $("ai-confidence").textContent = String(ai.status || "unavailable").toUpperCase();
+    status.textContent = ai.error || "Deterministic offline analysis is shown below.";
+    const item = document.createElement("li");
+    item.textContent = "Use the offline incident timeline and cited evidence.";
+    steps.append(item);
+  }
+}
+
 function render(payload) {
   const report = payload.report;
   const summary = report.summary;
@@ -146,6 +198,7 @@ function render(payload) {
     nodeList.append(chip);
   });
 
+  renderAiAnalysis(payload);
   if (payload.ai_error) showError(payload.ai_error);
   $("empty-state").hidden = true;
   $("analysis-content").hidden = false;

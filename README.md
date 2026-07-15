@@ -9,7 +9,7 @@
 - **Public repository:** https://github.com/timppyy/ros-trace-ai
 - **Demo video (<3 minutes, public, with audio):** [PLACEHOLDER: public YouTube URL]
 - **Live demo:** Not currently claimed; run the project locally using the instructions below.
-- **Codex Session ID (`/feedback`):** [PLACEHOLDER: add the submitted Codex Session ID]
+- **Codex Session ID (`/feedback`):** `019f6560-cdb8-7da1-bec4-5ca79eac8ea7`
 - **License:** See [`LICENSE`](LICENSE).
 
 ## Why ROS-Trace AI?
@@ -75,7 +75,17 @@ uv run uvicorn ros_trace_ai.app:app --host 127.0.0.1 --port 8000
 
 Enable **AI enrichment** in the UI to request model-assisted analysis. Without `OPENAI_API_KEY`, the application remains in deterministic offline mode.
 
-The intended AI boundary is narrow: deterministic code parses and groups the logs first; GPT-5.6 receives structured diagnostic context and improves prioritization and explanation. The offline result remains useful on its own. Do not paste secrets, credentials, or personally sensitive data into logs.
+The intended AI boundary is narrow: deterministic code parses and groups the logs first; GPT-5.6 receives bounded diagnostic context, not the full raw entry list, and improves prioritization and explanation. The enrichment response is accepted only when it matches this stable JSON contract:
+
+```json
+{
+  "root_cause": "non-empty string",
+  "next_steps": ["1-6 short commands or actions"],
+  "confidence": 0.0
+}
+```
+
+The API response always includes an `ai` status object with `requested`, `used`, `status`, `model`, `analysis`, and `error` fields. Status values are `not_requested`, `missing_api_key`, `succeeded`, `invalid_response`, or `unavailable`; every non-success state preserves the deterministic `report`. The prompt builder omits raw `entries`, limits incidents/evidence, truncates long text fields, and redacts common secret patterns before calling the model. The offline result remains useful on its own. Do not paste secrets, credentials, or personally sensitive data into logs.
 
 ## Use your own log
 
@@ -144,7 +154,7 @@ Codex was used as an implementation partner across the repository. The important
 **Required submission metadata:** run `/feedback` in the Codex environment used for the project and paste the resulting Session ID here before submission:
 
 ```text
-[PLACEHOLDER: Codex Session ID]
+019f6560-cdb8-7da1-bec4-5ca79eac8ea7
 ```
 
 ### GPT-5.6: optional runtime intelligence

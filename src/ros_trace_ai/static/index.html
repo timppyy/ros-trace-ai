@@ -99,6 +99,23 @@
       </div>
 
       <div id="analysis-content" hidden>
+        <section id="ai-panel" class="ai-panel panel" aria-labelledby="ai-title" hidden>
+          <div class="subheading">
+            <div><p class="section-index">AI ENRICHMENT</p><h3 id="ai-title">GPT-5.6 assessment</h3></div>
+            <span id="ai-confidence" class="confidence-meter">—</span>
+          </div>
+          <p id="ai-status-detail" class="ai-status-detail"></p>
+          <div class="ai-result-grid">
+            <div>
+              <h4>Root cause</h4>
+              <p id="ai-root-cause"></p>
+            </div>
+            <div>
+              <h4>Next steps</h4>
+              <ol id="ai-next-steps" class="ai-next-steps"></ol>
+            </div>
+          </div>
+        </section>
         <div class="analysis-layout">
           <section class="timeline-panel panel" aria-labelledby="timeline-title">
             <div class="subheading"><div><p class="section-index">CORRELATED EVENTS</p><h3 id="timeline-title">Incident timeline</h3></div><span id="timeline-span"></span></div>

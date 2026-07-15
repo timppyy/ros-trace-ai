@@ -61,7 +61,7 @@ def analyze(request: AnalyzeRequest) -> dict:
     report = analyze_log(request.log_text)
     api_key = os.getenv("OPENAI_API_KEY") if request.use_ai else None
     model = os.getenv("OPENAI_MODEL", "gpt-5.6")
-    return enrich_report(report, api_key=api_key, model=model)
+    return enrich_report(report, api_key=api_key, model=model, requested=request.use_ai)
 
 
 def run() -> None:

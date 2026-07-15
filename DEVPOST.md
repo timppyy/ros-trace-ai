@@ -18,7 +18,7 @@ Developer Tools
 
 - **Repository:** https://github.com/timppyy/ros-trace-ai
 - **Public YouTube demo (<3 minutes):** [PLACEHOLDER: public YouTube URL]
-- **Codex Session ID from `/feedback`:** [PLACEHOLDER: Codex Session ID]
+- **Codex Session ID from `/feedback`:** `019f6560-cdb8-7da1-bec4-5ca79eac8ea7`
 - **License:** See `LICENSE` in the public repository.
 
 ## Inspiration
@@ -228,7 +228,7 @@ No deployed URL or specific test result is claimed in this draft; use the submit
 ROS-Trace AI
 Developer Tools
 https://github.com/timppyy/ros-trace-ai
-[PLACEHOLDER: Codex Session ID]
+019f6560-cdb8-7da1-bec4-5ca79eac8ea7
 ```
 
 No additional narration is required, but leave the end card visible long enough to read.
