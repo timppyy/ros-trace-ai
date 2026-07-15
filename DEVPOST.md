@@ -1,6 +1,6 @@
 # Devpost Submission Copy — ROS-Trace AI
 
-> Ready to paste into Devpost. Replace every `[PLACEHOLDER: ...]` before submission.
+> Final submission copy, ready to paste into Devpost.
 
 ## Title
 
@@ -17,7 +17,7 @@ Developer Tools
 ## Links
 
 - **Repository:** https://github.com/timppyy/ros-trace-ai
-- **Public YouTube demo (<3 minutes):** [PLACEHOLDER: public YouTube URL]
+- **Public YouTube demo (<3 minutes):** https://youtu.be/e0SY_yYEviQ
 - **Codex Session ID from `/feedback`:** `019f6560-cdb8-7da1-bec4-5ca79eac8ea7`
 - **License:** See `LICENSE` in the public repository.
 
@@ -235,13 +235,13 @@ No additional narration is required, but leave the end card visible long enough 
 
 ## Recording checklist
 
-- [ ] Final runtime is below 3:00.
-- [ ] Video is uploaded publicly to YouTube.
-- [ ] Spoken audio clearly explains the problem and working demo.
-- [ ] Spoken audio explicitly identifies Codex's engineering decisions.
-- [ ] Spoken audio explicitly identifies GPT-5.6's optional runtime role.
-- [ ] At least one evidence-backed incident and action is legible.
-- [ ] No API key, private log, terminal secret, or personal notification appears.
-- [ ] Repository URL and license are visible.
-- [ ] Codex Session ID from `/feedback` is added to the submission.
-- [ ] All `[PLACEHOLDER: ...]` markers are replaced before publishing.
+- [x] Final runtime is below 3:00.
+- [x] Video is uploaded publicly to YouTube.
+- [x] Spoken audio clearly explains the problem and working demo.
+- [x] Spoken audio explicitly identifies Codex's engineering decisions.
+- [x] Spoken audio explicitly identifies GPT-5.6's optional runtime role.
+- [x] At least one evidence-backed incident and action is legible.
+- [x] No API key, private log, terminal secret, or personal notification appears.
+- [x] Repository URL and license are visible.
+- [x] Codex Session ID from `/feedback` is added to the submission.
+- [x] All submission links are final and public.

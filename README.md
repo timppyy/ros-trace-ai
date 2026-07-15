@@ -4,10 +4,8 @@
 
 **Hackathon category:** Developer Tools
 
-<!-- SUBMISSION TODO: Replace every [PLACEHOLDER: ...] below before publishing. -->
-
 - **Public repository:** https://github.com/timppyy/ros-trace-ai
-- **Demo video (<3 minutes, public, with audio):** [PLACEHOLDER: public YouTube URL]
+- **Demo video (<3 minutes, public, with audio):** https://youtu.be/e0SY_yYEviQ
 - **Live demo:** Not currently claimed; run the project locally using the instructions below.
 - **Codex Session ID (`/feedback`):** `019f6560-cdb8-7da1-bec4-5ca79eac8ea7`
 - **License:** See [`LICENSE`](LICENSE).
@@ -222,14 +220,13 @@ DEVPOST.md                # ready-to-paste submission copy and demo script
 
 ## Submission checklist
 
-- [ ] Replace the repository URL placeholder with a public repository.
-- [ ] Confirm the repository includes the declared license.
-- [ ] Run installation and tests from a clean checkout.
-- [ ] Record a public YouTube demo shorter than three minutes, with audio.
-- [ ] Explain Codex's engineering decisions and GPT-5.6's runtime role in the video.
-- [ ] Run `/feedback` and add the Codex Session ID.
-- [ ] Replace the YouTube placeholder.
-- [ ] Remove this checklist item only after searching for all `[PLACEHOLDER:` markers.
+- [x] Publish the source repository.
+- [x] Include the declared MIT license.
+- [x] Run installation and tests from a clean checkout.
+- [x] Publish a public YouTube demo shorter than three minutes, with audio.
+- [x] Explain Codex's engineering decisions and GPT-5.6's runtime role in the video.
+- [x] Submit `/feedback` and add the Codex Session ID.
+- [x] Add the public YouTube URL.
 
 ## License
 
