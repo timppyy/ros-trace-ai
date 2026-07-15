@@ -16,9 +16,16 @@ MAX_EVIDENCE_PER_INCIDENT = 3
 MAX_TEXT_FIELD_CHARS = 600
 
 _SECRET_PATTERNS = (
+    re.compile(
+        r"(?i)\bauthorization\s*[:=]\s*(?:basic|bearer)\s+[^\s,;]+"
+    ),
+    re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^/\s:@]+:[^@\s/]+@"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
     re.compile(
         r"(?i)\b(password|passwd|token|secret|api[_-]?key|authorization)\s*[:=]\s*[^\s,;]+"
+    ),
+    re.compile(
+        r"(?i)\b(token|secret|api[_-]?key)\s+(?:is\s+)?[A-Za-z0-9._~+/=-]{16,}\b"
     ),
     re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{16,}"),
 )
@@ -154,15 +161,33 @@ def _trim_prompt_payload(payload: dict[str, Any], max_chars: int, prefix_chars: 
     if len(compact) + prefix_chars <= max_chars:
         return compact
 
-    available = max(20, max_chars - prefix_chars - 60)
     summary = _compact_json({"summary": minimal["summary"]})
-    return _compact_json(
-        {
-            "summary": {"truncated": summary[:available]},
-            "incidents": [],
-            "limits": {"prompt_truncated": True},
+    payload_budget = max_chars - prefix_chars
+    base = {
+        "summary": {"truncated": ""},
+        "incidents": [],
+        "limits": {"prompt_truncated": True},
+    }
+    if payload_budget < 2:
+        return ""
+    if len(_compact_json(base)) > payload_budget:
+        return "{}"
+
+    low, high = 0, len(summary)
+    best = _compact_json(base)
+    while low <= high:
+        midpoint = (low + high) // 2
+        candidate = {
+            **base,
+            "summary": {"truncated": summary[:midpoint]},
         }
-    )
+        serialized = _compact_json(candidate)
+        if len(serialized) <= payload_budget:
+            best = serialized
+            low = midpoint + 1
+        else:
+            high = midpoint - 1
+    return best
 
 
 def _prompt_for(
@@ -175,11 +200,12 @@ def _prompt_for(
         "and confidence (number from 0 to 1). Do not invent evidence. "
         "Use only the provided incidents and evidence.\nREPORT:\n"
     )
+    if max_prompt_chars < len(prefix) + 2:
+        return "{}" if max_prompt_chars >= 2 else ""
     compact = _trim_prompt_payload(
         _report_for_model(report), max_prompt_chars, len(prefix)
     )
-    prompt = prefix + compact
-    return prompt[:max_prompt_chars]
+    return prefix + compact
 
 
 def _ai_payload(
@@ -253,26 +279,15 @@ def enrich_report(
             )
         return result
 
-    sdk = client or OpenAI(api_key=api_key)
     try:
+        sdk = client or OpenAI(api_key=api_key)
         response = sdk.responses.create(
             model=model,
             input=_prompt_for(report, max_prompt_chars=max_prompt_chars),
         )
-        analysis = _parse_analysis(response.output_text)
-    except (json.JSONDecodeError, TypeError, ValueError, ValidationError) as exc:
-        message = f"Invalid model response: {exc}"
-        result["ai_error"] = message
-        result["ai"] = _ai_payload(
-            requested=True,
-            used=False,
-            status="invalid_response",
-            model=model,
-            error=message,
-        )
-        return result
-    except Exception as exc:  # Network/provider failures should preserve offline analysis.
-        message = f"AI enrichment unavailable: {exc}"
+        output_text = response.output_text
+    except Exception:  # SDK/provider failures should preserve offline analysis.
+        message = "AI enrichment is temporarily unavailable."
         result["ai_error"] = message
         result["ai"] = _ai_payload(
             requested=True,
@@ -283,6 +298,19 @@ def enrich_report(
         )
         return result
 
+    try:
+        analysis = _parse_analysis(output_text)
+    except (json.JSONDecodeError, TypeError, ValueError, ValidationError):
+        message = "AI enrichment returned an invalid response."
+        result["ai_error"] = message
+        result["ai"] = _ai_payload(
+            requested=True,
+            used=False,
+            status="invalid_response",
+            model=model,
+            error=message,
+        )
+        return result
     result["ai_used"] = True
     result["ai_analysis"] = analysis
     result["ai"] = _ai_payload(
