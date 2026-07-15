@@ -6,7 +6,7 @@
 
 <!-- SUBMISSION TODO: Replace every [PLACEHOLDER: ...] below before publishing. -->
 
-- **Public repository:** [PLACEHOLDER: public GitHub repository URL]
+- **Public repository:** https://github.com/timppyy/ros-trace-ai
 - **Demo video (<3 minutes, public, with audio):** [PLACEHOLDER: public YouTube URL]
 - **Live demo:** Not currently claimed; run the project locally using the instructions below.
 - **Codex Session ID (`/feedback`):** [PLACEHOLDER: add the submitted Codex Session ID]
@@ -43,7 +43,7 @@ ROS-Trace AI provides a deterministic offline path that works without ROS and wi
 ### Install and run
 
 ```bash
-git clone [PLACEHOLDER: public GitHub repository URL]
+git clone https://github.com/timppyy/ros-trace-ai.git
 cd ros-trace-ai
 uv sync
 uv run uvicorn ros_trace_ai.app:app --host 127.0.0.1 --port 8000

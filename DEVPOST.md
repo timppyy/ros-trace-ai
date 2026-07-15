@@ -16,7 +16,7 @@ Developer Tools
 
 ## Links
 
-- **Repository:** [PLACEHOLDER: public GitHub repository URL]
+- **Repository:** https://github.com/timppyy/ros-trace-ai
 - **Public YouTube demo (<3 minutes):** [PLACEHOLDER: public YouTube URL]
 - **Codex Session ID from `/feedback`:** [PLACEHOLDER: Codex Session ID]
 - **License:** See `LICENSE` in the public repository.
@@ -114,7 +114,7 @@ We also learned that explainability is a product feature for developer tools. Sh
 ### Run locally
 
 ```bash
-git clone [PLACEHOLDER: public GitHub repository URL]
+git clone https://github.com/timppyy/ros-trace-ai.git
 cd ros-trace-ai
 uv sync
 uv run uvicorn ros_trace_ai.app:app --host 127.0.0.1 --port 8000
@@ -227,7 +227,7 @@ No deployed URL or specific test result is claimed in this draft; use the submit
 ```text
 ROS-Trace AI
 Developer Tools
-[PLACEHOLDER: public repository URL]
+https://github.com/timppyy/ros-trace-ai
 [PLACEHOLDER: Codex Session ID]
 ```
 
