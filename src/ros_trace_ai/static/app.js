@@ -241,9 +241,143 @@ function exportAnalysis() {
   showToast("JSON report exported");
 }
 
+function markdownValue(value, fallback = "—") {
+  return text(value, fallback)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\\/g, "\\\\")
+    .replace(/([`*_{}\[\]()#+.!|~-])/g, "\\$1")
+    .replace(/[\r\n]+/g, " ");
+}
+
+function buildMarkdownReport(payload) {
+  const report = payload.report || {};
+  const summary = report.summary || {};
+  const incidents = report.incidents || [];
+  const counts = summary.severity_counts || {};
+  const analysisMode = payload.ai_used
+    ? `${markdownValue(payload.ai?.model, "AI")} enriched`
+    : "Offline deterministic";
+  const lines = [
+    "# ROS Trace Diagnostic Report",
+    "",
+    "## Summary",
+    "",
+    `- **Analysis mode:** ${analysisMode}`,
+    `- **Total lines:** ${summary.total_lines || 0}`,
+    `- **Errors:** ${(counts.ERROR || 0) + (counts.FATAL || 0)}`,
+    `- **Warnings:** ${counts.WARN || 0}`,
+    `- **Incidents:** ${summary.incident_count || 0}`,
+    `- **Nodes:** ${(summary.nodes || []).map((node) => markdownValue(node)).join(", ") || "—"}`,
+  ];
+  const summaryRange = summary.time_range || {};
+  if (summaryRange.start) {
+    lines.push(
+      `- **Time range:** ${markdownValue(summaryRange.start)} → ${markdownValue(summaryRange.end || summaryRange.start)}`,
+    );
+  }
+  if (summary.incidents_omitted) {
+    lines.push(`- **Incidents omitted:** ${summary.incidents_omitted}`);
+  }
+  if (summary.entries_omitted) {
+    lines.push(`- **Raw entries omitted:** ${summary.entries_omitted}`);
+  }
+
+  incidents.forEach((incident, index) => {
+    const first = incident.first_timestamp;
+    const last = incident.last_timestamp;
+    const timeRange = first
+      ? (last && last !== first ? `${first} → ${last}` : first)
+      : "—";
+    lines.push(
+      "",
+      `## Incident ${index + 1} — ${markdownValue(incident.title, "Unclassified incident")}`,
+      "",
+      `- **Severity:** ${markdownValue(incident.severity, "INFO")}`,
+      `- **Node:** ${markdownValue(incident.node, "unknown node")}`,
+      `- **Occurrences:** ${incident.count || 1}`,
+      `- **Time:** ${markdownValue(timeRange)}`,
+      "",
+      "### Likely cause",
+      "",
+      markdownValue(incident.root_cause, incident.message || "No cause identified."),
+      "",
+      "### Evidence",
+      "",
+    );
+    const evidence = incident.evidence || [];
+    if (evidence.length) {
+      evidence.forEach((item) => {
+        const detail = item && typeof item === "object"
+          ? item.raw || item.message || JSON.stringify(item)
+          : item;
+        const line = item && typeof item === "object" && item.line_number
+          ? `Line ${item.line_number}: `
+          : "";
+        lines.push(`- ${line}${markdownValue(detail)}`);
+      });
+    } else {
+      lines.push("- No evidence captured.");
+    }
+    if (incident.evidence_omitted) {
+      lines.push(`- ${incident.evidence_omitted} additional evidence item(s) omitted.`);
+    }
+    lines.push(
+      "",
+      "### Recommended action",
+      "",
+      markdownValue(incident.recommendation, "Review the cited evidence."),
+    );
+  });
+
+  const ai = payload.ai || {};
+  if (payload.ai_used && ai.analysis) {
+    lines.push(
+      "",
+      "## AI assessment",
+      "",
+      "> Model-generated recommendation — verify before acting.",
+      "",
+      `- **Model:** ${markdownValue(ai.model, "AI")}`,
+      `- **Confidence:** ${Math.round(Number(ai.analysis.confidence || 0) * 100)}%`,
+      "",
+      "### Root cause synthesis",
+      "",
+      markdownValue(ai.analysis.root_cause),
+      "",
+      "### Next steps",
+      "",
+    );
+    (ai.analysis.next_steps || []).forEach((step) => {
+      lines.push(`- ${markdownValue(step)}`);
+    });
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function exportMarkdown() {
+  if (!latestPayload) {
+    showError("Run an analysis before exporting a report.");
+    return;
+  }
+  const blob = new Blob([buildMarkdownReport(latestPayload)], {type: "text/markdown;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "ros-trace-report.md";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showToast("Markdown report exported");
+}
+
 function render(payload) {
   latestPayload = payload;
   $("export-button").hidden = false;
+  $("markdown-export-button").hidden = false;
   const report = payload.report;
   const summary = report.summary;
   const counts = summary.severity_counts || {};
@@ -335,6 +469,7 @@ fileInput.addEventListener("change", () => loadFile(fileInput.files[0]));
 input.addEventListener("input", () => updateInputMeta($("file-name").textContent));
 analyzeButton.addEventListener("click", analyze);
 $("export-button").addEventListener("click", exportAnalysis);
+$("markdown-export-button").addEventListener("click", exportMarkdown);
 
 for (const eventName of ["dragenter", "dragover"]) {
   document.addEventListener(eventName, (event) => { event.preventDefault(); document.body.classList.add("dragging"); });
