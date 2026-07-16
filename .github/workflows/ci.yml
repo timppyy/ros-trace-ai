@@ -7,10 +7,12 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
       - run: uv sync --extra dev
+      - run: uv run playwright install --with-deps chromium
       - run: uv run pytest --cov=ros_trace_ai --cov-report=term-missing
