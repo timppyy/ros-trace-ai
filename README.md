@@ -173,6 +173,7 @@ Run the complete test suite from the repository root:
 
 ```bash
 uv sync --extra dev
+uv run playwright install chromium
 uv run pytest -v
 ```
 
@@ -182,6 +183,7 @@ Useful focused paths:
 uv run pytest tests/test_analyzer.py -v
 uv run pytest tests/test_ai.py -v
 uv run pytest tests/test_api.py -v
+uv run pytest tests/test_browser_e2e.py -v
 ```
 
 Manual smoke test:
@@ -213,7 +215,7 @@ src/ros_trace_ai/
 └── static/              # vanilla browser interface
 samples/
 └── navigation_failure.log
-tests/                   # analyzer, AI-boundary, and API tests
+tests/                   # analyzer, AI-boundary, API, and browser journey tests
 DEVPOST.md                # ready-to-paste submission copy and demo script
 ```
 
