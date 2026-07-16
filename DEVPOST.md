@@ -37,7 +37,7 @@ ROS-Trace AI turns ROS-style text logs into a compact diagnostic report:
 - likely root-cause hypotheses;
 - the exact log evidence behind each hypothesis; and
 - actionable checks or commands for the developer to try next; and
-- a downloadable JSON report for sharing or downstream automation.
+- downloadable JSON for downstream automation and a human-readable Markdown report for issues or team notes.
 
 The web interface can run a bundled navigation-failure sample in one click or accept pasted logs, so judges can see a meaningful result immediately. Known signatures cover TF failures, missing topics, QoS incompatibility, lifecycle transitions, control-loop overruns, timeouts, node crashes, and host resource exhaustion. The deterministic path runs locally without ROS, an API key, or a network call. If an OpenAI key is explicitly configured, GPT-5.6 can enrich the structured findings with a clearer synthesis and prioritization.
 
@@ -81,12 +81,12 @@ A robotics tool can easily accumulate environment requirements. Serving a vanill
 - Built an offline-first developer tool instead of an AI-dependent demo.
 - Made each diagnosis evidence-backed and paired it with a next action.
 - Put the primary evidence line, timestamp range, likely cause, and recommended action directly in each incident card.
-- Added bounded JSON export and explicit omission counts for large reports.
+- Added bounded JSON export, human-readable Markdown reports, and explicit omission counts for large analyses.
 - Created a bundled sample workflow that reaches useful output quickly.
 - Kept the application runnable without ROS, robot hardware, or an API key.
 - Isolated optional GPT-5.6 enrichment from deterministic parsing and analysis.
 - Used a single FastAPI process and no-build frontend to minimize setup friction.
-- Designed tests around parser behavior, AI fallback, and API behavior.
+- Designed tests around parser behavior, AI fallback, API behavior, and the real browser journey.
 
 ## What we learned
 

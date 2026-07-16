@@ -76,6 +76,17 @@ def test_browser_render_targets_ai_contract_fields():
     assert "ai-status-detail" in script
 
 
+def test_ui_can_export_a_human_readable_markdown_report():
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="markdown-export-button"' in html
+    assert "function buildMarkdownReport" in script
+    assert "function exportMarkdown" in script
+    assert "text/markdown" in script
+    assert "ros-trace-report.md" in script
+
+
 def test_ui_can_export_the_complete_analysis_as_json():
     html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
     script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")

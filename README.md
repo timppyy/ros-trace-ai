@@ -25,7 +25,7 @@ ROS-Trace AI provides a deterministic offline path that works without ROS and wi
 - Groups repeated errors into incidents and builds a compact timeline.
 - Applies deterministic rules for TF, missing topics, QoS incompatibility, lifecycle failures, control-loop overruns, timeouts, crashes, and host resource exhaustion.
 - Labels likely cause, recommended action, timestamps, and primary evidence directly in each incident card.
-- Exports the complete analysis as a portable JSON report.
+- Exports the complete analysis as portable JSON or a human-readable Markdown incident report.
 - Runs fully offline by default—no ROS installation and no OpenAI key required.
 - Optionally asks GPT-5.6 to enrich the deterministic result when an API key is explicitly configured.
 
@@ -58,7 +58,7 @@ If you already have the repository checked out, begin with `uv sync` in its root
 1. Start the server and open the local URL above.
 2. Choose **Run sample analysis** for a one-click offline demonstration, or use **Load sample** if you want to inspect/edit the input first.
 3. Confirm that the header reports the real AI capability state; no key is required for offline analysis.
-4. Review the severity summary, ordered incident cards, cited log evidence, and suggested checks/commands.
+4. Review the severity summary, ordered incident cards, cited log evidence, and suggested checks/commands; export Markdown when you want to paste the report into an issue or team note.
 5. Paste a malformed line or duplicate error into the input and analyze again to see tolerant parsing and repeated-event grouping.
 6. Optionally enable GPT-5.6 as described below and compare the enriched explanation with the deterministic baseline.
 
