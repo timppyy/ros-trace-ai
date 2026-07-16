@@ -19,7 +19,7 @@
     </a>
     <div class="header-meta">
       <span class="status-pill"><span class="status-dot"></span>Offline Sandbox</span>
-      <span class="model-pill">GPT-5.6 READY</span>
+      <span id="model-status" class="model-pill">AI: CHECKING</span>
       <a class="github-link" href="https://github.com/timppyy/ros-trace-ai" target="_blank" rel="noreferrer" aria-label="View project source">SOURCE ↗</a>
     </div>
   </header>
@@ -66,32 +66,36 @@
         <label class="ai-toggle">
           <input id="ai-toggle" type="checkbox">
           <span class="toggle-track" aria-hidden="true"><span></span></span>
-          <span><strong>AI enrichment</strong><small>Optional GPT-5.6 root-cause reasoning</small></span>
+          <span><strong>AI enrichment</strong><small id="ai-toggle-detail">Checking model availability…</small></span>
         </label>
         <button id="analyze-button" class="button button-primary" type="button">
           <span class="button-label">Analyze trace</span><span class="button-arrow" aria-hidden="true">→</span>
         </button>
       </div>
+      <p class="input-hint">When enabled, bounded structured diagnostic context is sent to OpenAI. Raw entries are omitted and common credential patterns are redacted.</p>
       <div id="error-banner" class="error-banner" role="alert" hidden></div>
     </section>
 
     <section id="results" class="results" aria-labelledby="results-title" aria-live="polite" aria-busy="false">
       <div class="results-heading">
-        <div><p class="section-index">ANALYSIS / 02</p><h2 id="results-title">Trace intelligence</h2></div>
-        <span id="analysis-state" class="analysis-state">AWAITING INPUT</span>
+        <div><p class="section-index">ANALYSIS / 02</p><h2 id="results-title" tabindex="-1">Trace intelligence</h2></div>
+        <div class="result-actions">
+          <span id="analysis-state" class="analysis-state">AWAITING INPUT</span>
+          <button id="export-button" class="button button-secondary button-compact" type="button" hidden>Export JSON</button>
+        </div>
       </div>
 
       <div id="metrics" class="metrics" aria-label="Analysis metrics">
-        <article class="metric metric-error"><span class="metric-icon">×</span><div><strong id="error-count">—</strong><span>Errors</span></div></article>
-        <article class="metric metric-warning"><span class="metric-icon">!</span><div><strong id="warning-count">—</strong><span>Warnings</span></div></article>
-        <article class="metric metric-node"><span class="metric-icon">◇</span><div><strong id="node-count">—</strong><span>Nodes seen</span></div></article>
-        <article class="metric metric-incident"><span class="metric-icon">↯</span><div><strong id="incident-count">—</strong><span>Incidents</span></div></article>
+        <article class="metric metric-error"><span class="metric-icon" aria-hidden="true">×</span><div><strong id="error-count">—</strong><span>Errors</span></div></article>
+        <article class="metric metric-warning"><span class="metric-icon" aria-hidden="true">!</span><div><strong id="warning-count">—</strong><span>Warnings</span></div></article>
+        <article class="metric metric-node"><span class="metric-icon" aria-hidden="true">◇</span><div><strong id="node-count">—</strong><span>Nodes seen</span></div></article>
+        <article class="metric metric-incident"><span class="metric-icon" aria-hidden="true">↯</span><div><strong id="incident-count">—</strong><span>Incidents</span></div></article>
       </div>
 
       <div id="empty-state" class="empty-state panel">
         <div class="radar" aria-hidden="true"><span></span><i></i></div>
         <div><p class="section-index">SYSTEM STANDBY</p><h3>No trace analyzed yet</h3><p>Load the curated navigation failure sample or paste your own logs above. Incidents will appear here in chronological order with supporting evidence and recommended fixes.</p></div>
-        <button id="empty-sample-button" class="text-button" type="button">Explore the sample trace <span>→</span></button>
+        <button id="empty-sample-button" class="text-button" type="button">Run sample analysis <span>→</span></button>
       </div>
 
       <div id="loading-state" class="loading-state panel" hidden>
@@ -101,7 +105,7 @@
       <div id="analysis-content" hidden>
         <section id="ai-panel" class="ai-panel panel" aria-labelledby="ai-title" hidden>
           <div class="subheading">
-            <div><p class="section-index">AI ENRICHMENT</p><h3 id="ai-title">GPT-5.6 assessment</h3></div>
+            <div><p class="section-index">AI ENRICHMENT</p><h3 id="ai-title">AI assessment</h3></div>
             <span id="ai-confidence" class="confidence-meter">—</span>
           </div>
           <p id="ai-status-detail" class="ai-status-detail"></p>

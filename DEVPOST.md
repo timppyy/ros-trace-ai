@@ -36,9 +36,10 @@ ROS-Trace AI turns ROS-style text logs into a compact diagnostic report:
 - grouping of repeated failures;
 - likely root-cause hypotheses;
 - the exact log evidence behind each hypothesis; and
-- actionable checks or commands for the developer to try next.
+- actionable checks or commands for the developer to try next; and
+- a downloadable JSON report for sharing or downstream automation.
 
-The web interface can load a bundled navigation-failure sample or accept pasted logs, so judges can see a meaningful result immediately. The deterministic path runs locally without ROS, an API key, or a network call. If an OpenAI key is explicitly configured, GPT-5.6 can enrich the structured findings with a clearer synthesis and prioritization.
+The web interface can run a bundled navigation-failure sample in one click or accept pasted logs, so judges can see a meaningful result immediately. Known signatures cover TF failures, missing topics, QoS incompatibility, lifecycle transitions, control-loop overruns, timeouts, node crashes, and host resource exhaustion. The deterministic path runs locally without ROS, an API key, or a network call. If an OpenAI key is explicitly configured, GPT-5.6 can enrich the structured findings with a clearer synthesis and prioritization.
 
 ROS-Trace AI is intentionally a text-log analyzer rather than a binary ROS bag reader. Teams can export relevant console logs from ROS1 or ROS2 and analyze those locally.
 
@@ -79,6 +80,8 @@ A robotics tool can easily accumulate environment requirements. Serving a vanill
 
 - Built an offline-first developer tool instead of an AI-dependent demo.
 - Made each diagnosis evidence-backed and paired it with a next action.
+- Put the primary evidence line, timestamp range, likely cause, and recommended action directly in each incident card.
+- Added bounded JSON export and explicit omission counts for large reports.
 - Created a bundled sample workflow that reaches useful output quickly.
 - Kept the application runnable without ROS, robot hardware, or an API key.
 - Isolated optional GPT-5.6 enrichment from deterministic parsing and analysis.
@@ -93,7 +96,7 @@ We also learned that explainability is a product feature for developer tools. Sh
 
 ## What's next
 
-- Add more deterministic signatures for transforms, DDS/QoS, lifecycle nodes, navigation, sensors, and resource exhaustion.
+- Add more deterministic signatures for sensors, plugin loading, ros2_control hardware initialization, and DDS transport failures.
 - Support rosbag/MCAP extraction through explicit local adapters.
 - Add log redaction previews before optional model enrichment.
 - Compare incidents across two runs to detect regressions.

@@ -23,7 +23,9 @@ ROS-Trace AI provides a deterministic offline path that works without ROS and wi
 - Tolerates malformed or unstructured lines instead of failing the entire analysis.
 - Parses common ROS1/ROS2-style records and summarizes severity counts.
 - Groups repeated errors into incidents and builds a compact timeline.
-- Applies deterministic rules to generate likely causes, evidence, and recommended actions.
+- Applies deterministic rules for TF, missing topics, QoS incompatibility, lifecycle failures, control-loop overruns, timeouts, crashes, and host resource exhaustion.
+- Labels likely cause, recommended action, timestamps, and primary evidence directly in each incident card.
+- Exports the complete analysis as a portable JSON report.
 - Runs fully offline by default—no ROS installation and no OpenAI key required.
 - Optionally asks GPT-5.6 to enrich the deterministic result when an API key is explicitly configured.
 
@@ -54,13 +56,15 @@ If you already have the repository checked out, begin with `uv sync` in its root
 ### 60-second judging path
 
 1. Start the server and open the local URL above.
-2. Choose **Load sample** to load the bundled navigation failure.
-3. Run the analysis in the default offline mode.
+2. Choose **Run sample analysis** for a one-click offline demonstration, or use **Load sample** if you want to inspect/edit the input first.
+3. Confirm that the header reports the real AI capability state; no key is required for offline analysis.
 4. Review the severity summary, ordered incident cards, cited log evidence, and suggested checks/commands.
 5. Paste a malformed line or duplicate error into the input and analyze again to see tolerant parsing and repeated-event grouping.
 6. Optionally enable GPT-5.6 as described below and compare the enriched explanation with the deterministic baseline.
 
 No robot, ROS installation, cloud deployment, or API key is needed for steps 1–5.
+
+For predictable local resource use, the API rejects inputs above 20,000 logical lines, caps returned incidents, raw entries, and per-incident evidence, and reports omission counts without changing full severity or incident totals.
 
 ## Optional GPT-5.6 enrichment
 
@@ -84,6 +88,8 @@ The intended AI boundary is narrow: deterministic code parses and groups the log
 ```
 
 The API response always includes an `ai` status object with `requested`, `used`, `status`, `model`, `analysis`, and `error` fields. Status values are `not_requested`, `missing_api_key`, `succeeded`, `invalid_response`, or `unavailable`; every non-success state preserves the deterministic `report`. The prompt builder omits raw `entries`, limits incidents/evidence, truncates long text fields, and redacts common secret patterns before calling the model. The offline result remains useful on its own. Do not paste secrets, credentials, or personally sensitive data into logs.
+
+The UI checks `/api/capabilities` before enabling enrichment, states when a key is required, and explains that bounded structured diagnostic context leaves the local process when AI is enabled. Redaction is defense in depth, not a guarantee; review sensitive operational logs before opt-in.
 
 ## Use your own log
 
