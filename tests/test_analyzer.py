@@ -9,7 +9,13 @@ import pytest
 # Keep the focused tests runnable before packaging metadata exists.
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from ros_trace_ai.analyzer import analyze_log, parse_line
+from ros_trace_ai.analyzer import (
+    MAX_EVIDENCE_PER_INCIDENT,
+    MAX_RETURNED_ENTRIES,
+    MAX_RETURNED_INCIDENTS,
+    analyze_log,
+    parse_line,
+)
 
 
 def test_parse_ros1_line():
@@ -31,6 +37,29 @@ def test_parse_ros2_launch_prefixed_line():
     assert entry.node == "nav2_planner"
     assert entry.process == "planner-1"
     assert entry.message == "timed out waiting for action server"
+
+
+@pytest.mark.parametrize("severity_text", ["INFO", " INFO", "INFO ", " WARNING "])
+def test_parse_accepts_padded_ros_severity(severity_text):
+    entry = parse_line(
+        f"[{severity_text}] [1712345678.1] [nav]: controller ready"
+    )
+
+    assert entry.severity == ("WARN" if "WARNING" in severity_text else "INFO")
+    assert entry.timestamp == "1712345678.1"
+    assert entry.node == "nav"
+
+
+def test_parse_ignores_ansi_color_sequences():
+    line = "\x1b[31m[ERROR] [1712345678.1] [nav]: timeout waiting for service\x1b[0m"
+
+    entry = parse_line(line)
+
+    assert entry.severity == "ERROR"
+    assert entry.timestamp == "1712345678.1"
+    assert entry.node == "nav"
+    assert entry.message == "timeout waiting for service"
+    assert entry.raw == line
 
 
 def test_malformed_line_is_preserved_as_info():
@@ -70,6 +99,37 @@ def test_report_counts_nodes_time_range_and_is_json_serializable():
     json.dumps(report)
 
 
+def test_report_caps_returned_entries_and_incident_evidence():
+    total = MAX_RETURNED_ENTRIES + 100
+    report = analyze_log(
+        "\n".join(
+            f"[WARN] [{index}.0] [camera]: no publishers for topic /scan"
+            for index in range(total)
+        )
+    )
+
+    assert report["summary"]["total_lines"] == total
+    assert report["summary"]["entries_omitted"] == 100
+    assert len(report["entries"]) == MAX_RETURNED_ENTRIES
+    assert report["incidents"][0]["count"] == total
+    assert len(report["incidents"][0]["evidence"]) == MAX_EVIDENCE_PER_INCIDENT
+    assert report["incidents"][0]["evidence_omitted"] == total - MAX_EVIDENCE_PER_INCIDENT
+
+
+def test_report_caps_returned_incidents_without_losing_total_count():
+    total = MAX_RETURNED_INCIDENTS + 20
+    report = analyze_log(
+        "\n".join(
+            f"[WARN] [{index}.0] [node_{index}]: component unavailable"
+            for index in range(total)
+        )
+    )
+
+    assert report["summary"]["incident_count"] == total
+    assert report["summary"]["incidents_omitted"] == 20
+    assert len(report["incidents"]) == MAX_RETURNED_INCIDENTS
+
+
 def test_repeated_messages_are_normalized_and_grouped_with_evidence():
     report = analyze_log(
         "\n".join(
@@ -89,6 +149,46 @@ def test_repeated_messages_are_normalized_and_grouped_with_evidence():
     assert incident["evidence"][0]["line_number"] == 1
 
 
+@pytest.mark.parametrize("code", ["0", "-0", "+0", "00", "0x0", "-0x0"])
+def test_clean_exit_is_not_a_node_crash(code):
+    report = analyze_log(
+        f"[INFO] [1.0] [launch]: process worker exited with exit code {code}"
+    )
+
+    assert report["incidents"] == []
+
+
+@pytest.mark.parametrize("severity", ["INFO", "WARN", "ERROR"])
+def test_clean_exit_does_not_suppress_other_diagnostics(severity):
+    report = analyze_log(
+        f"[{severity}] [1.0] [launch]: timeout during cleanup; process exited with exit code 0"
+    )
+
+    assert report["incidents"][0]["kind"] == "timeout"
+
+
+@pytest.mark.parametrize("code", [-11, 1, 134, "0x1"])
+def test_nonzero_exit_code_is_a_node_crash(code):
+    report = analyze_log(
+        f"[ERROR] [1.0] [launch]: process worker exited with exit code {code}"
+    )
+
+    assert report["incidents"][0]["kind"] == "node_crash"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "[INFO] [1.0] [manager]: Lifecycle transition completed without error",
+        "[INFO] [2.0] [lidar]: QoS profiles are compatible on /scan",
+        "[INFO] [3.0] [camera]: memory allocation completed",
+        "[INFO] [4.0] [controller]: control loop rate is stable",
+    ],
+)
+def test_known_rule_phrases_do_not_match_success_messages(line):
+    assert analyze_log(line)["incidents"] == []
+
+
 @pytest.mark.parametrize(
     ("line", "kind"),
     [
@@ -96,6 +196,22 @@ def test_repeated_messages_are_normalized_and_grouped_with_evidence():
         ("[WARN] [2.0]: no publishers for topic /scan", "missing_topic"),
         ("[ERROR] [3.0]: process [controller-2] has died [pid 42]", "node_crash"),
         ("[ERROR] [4.0]: timeout waiting for service /map", "timeout"),
+        (
+            "[WARN] [5.0] [controller_server]: Costmap update loop missed its desired rate",
+            "control_loop_overrun",
+        ),
+        (
+            "[WARN] [6.0] [lidar]: New subscription discovered with incompatible QoS on topic /scan",
+            "qos_incompatibility",
+        ),
+        (
+            "[ERROR] [7.0] [lifecycle_manager]: Failed to transition node map_server to active state",
+            "lifecycle_transition",
+        ),
+        (
+            "[FATAL] [8.0] [camera]: std::bad_alloc: cannot allocate memory",
+            "resource_exhaustion",
+        ),
     ],
 )
 def test_known_root_cause_rules(line, kind):

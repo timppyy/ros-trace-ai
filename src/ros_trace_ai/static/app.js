@@ -3,10 +3,35 @@ const $ = (id) => document.getElementById(id);
 const input = $("log-input");
 const fileInput = $("file-input");
 const analyzeButton = $("analyze-button");
-const sampleButtons = [$("sample-button"), $("empty-sample-button")];
 const errorBanner = $("error-banner");
 const results = $("results");
 let toastTimer;
+let latestPayload = null;
+
+async function loadCapabilities() {
+  const toggle = $("ai-toggle");
+  const status = $("model-status");
+  const detail = $("ai-toggle-detail");
+  toggle.disabled = true;
+  try {
+    const response = await fetch("/api/capabilities");
+    if (!response.ok) throw new Error("Capability check failed");
+    const capabilities = await response.json();
+    if (capabilities.ai_available) {
+      toggle.disabled = false;
+      status.textContent = `${capabilities.model || "AI"} AVAILABLE`;
+      detail.textContent = `Optional ${capabilities.model || "AI"} root-cause reasoning`;
+    } else {
+      toggle.checked = false;
+      status.textContent = "AI: KEY REQUIRED";
+      detail.textContent = "Unavailable · set OPENAI_API_KEY to enable";
+    }
+  } catch (_error) {
+    toggle.checked = false;
+    status.textContent = "AI: STATUS UNKNOWN";
+    detail.textContent = "Availability check failed · offline analysis remains ready";
+  }
+}
 
 function updateInputMeta(name = "untitled.log") {
   const count = input.value ? input.value.split(/\r?\n/).length : 0;
@@ -56,9 +81,15 @@ async function loadSample() {
     updateInputMeta(data.name || "navigation_failure.log");
     input.focus();
     showToast("Sample trace loaded");
+    return true;
   } catch (error) {
     showError(error.message);
+    return false;
   }
+}
+
+async function runSampleAnalysis() {
+  if (await loadSample()) await analyze();
 }
 
 function severityClass(value) {
@@ -80,14 +111,23 @@ function incidentCard(incident) {
   badge.textContent = text(incident.severity, "INFO");
   const meta = document.createElement("span");
   meta.className = "meta";
-  meta.textContent = `${text(incident.node, "unknown node")} · ${incident.count || 1} occurrence${incident.count === 1 ? "" : "s"}`;
+  const first = incident.first_timestamp;
+  const last = incident.last_timestamp;
+  const timeRange = first ? (last && last !== first ? `${first} → ${last}` : first) : "time unavailable";
+  meta.textContent = `${text(incident.node, "unknown node")} · ${incident.count || 1} occurrence${incident.count === 1 ? "" : "s"} · ${timeRange}`;
   top.append(badge, meta);
 
   const title = document.createElement("h4");
   title.textContent = text(incident.title, "Unclassified incident");
+  const causeLabel = document.createElement("p");
+  causeLabel.className = "card-label";
+  causeLabel.textContent = "Likely cause";
   const cause = document.createElement("p");
   cause.textContent = text(incident.root_cause, incident.message);
 
+  const recommendationLabel = document.createElement("p");
+  recommendationLabel.className = "card-label";
+  recommendationLabel.textContent = "Recommended action";
   const recommendation = document.createElement("div");
   recommendation.className = "recommendation";
   recommendation.textContent = text(incident.recommendation, "Inspect the cited evidence and surrounding log context.");
@@ -97,20 +137,36 @@ function incidentCard(incident) {
   copy.className = "copy-button";
   copy.textContent = "COPY NEXT STEP";
   copy.addEventListener("click", async () => {
-    await navigator.clipboard.writeText(recommendation.textContent);
-    showToast("Next step copied");
+    try {
+      await navigator.clipboard.writeText(recommendation.textContent);
+      showToast("Next step copied");
+    } catch (_error) {
+      showError("Clipboard unavailable. Select and copy the recommended action manually.");
+    }
   });
+
+  const evidenceEvents = incident.evidence || [];
+  const evidenceLabel = document.createElement("p");
+  evidenceLabel.className = "card-label";
+  evidenceLabel.textContent = "Primary evidence";
+  const primaryEvidence = document.createElement("pre");
+  primaryEvidence.className = "primary-evidence";
+  const primary = evidenceEvents[0];
+  primaryEvidence.textContent = primary
+    ? `L${primary.line_number || "?"} [${text(primary.severity, "INFO")}] [${text(primary.node, "unknown node")}] ${primary.message || primary.raw || ""}`
+    : "No structured evidence available.";
 
   const details = document.createElement("details");
   details.className = "evidence";
   const summary = document.createElement("summary");
-  summary.textContent = `VIEW EVIDENCE (${(incident.evidence || []).length})`;
+  const omitted = incident.evidence_omitted || 0;
+  summary.textContent = `VIEW ALL EVIDENCE (${evidenceEvents.length}${omitted ? ` + ${omitted} omitted` : ""})`;
   const pre = document.createElement("pre");
-  pre.textContent = (incident.evidence || [])
+  pre.textContent = evidenceEvents
     .map((event) => `L${event.line_number || "?"} ${event.raw || event.message || ""}`)
     .join("\n");
   details.append(summary, pre);
-  item.append(top, title, cause, recommendation, copy, details);
+  item.append(top, title, causeLabel, cause, recommendationLabel, recommendation, copy, evidenceLabel, primaryEvidence, details);
   return item;
 }
 
@@ -140,12 +196,13 @@ function renderAiAnalysis(payload) {
   const contractAnalysis = payload.ai ? payload.ai.analysis : null;
   const analysis = contractAnalysis || payload.ai_analysis;
   if (ai.used && analysis) {
+    $("ai-title").textContent = `${ai.model || "AI"} assessment`;
     $("ai-root-cause").textContent = text(analysis.root_cause, "No root cause returned.");
     const confidence = Number(analysis.confidence);
     $("ai-confidence").textContent = Number.isFinite(confidence)
       ? `${Math.round(confidence * 100)}% confidence`
       : "Confidence unavailable";
-    status.textContent = `${ai.model || "AI"} enrichment completed.`;
+    status.textContent = `${ai.model || "AI"} enrichment completed. Model-generated recommendations — verify before acting.`;
     (analysis.next_steps || []).forEach((step) => {
       const item = document.createElement("li");
       item.textContent = step;
@@ -157,6 +214,7 @@ function renderAiAnalysis(payload) {
       steps.append(item);
     }
   } else {
+    $("ai-title").textContent = "AI assessment";
     $("ai-root-cause").textContent = "AI enrichment did not run.";
     $("ai-confidence").textContent = String(ai.status || "unavailable").toUpperCase();
     status.textContent = ai.error || "Deterministic offline analysis is shown below.";
@@ -166,7 +224,26 @@ function renderAiAnalysis(payload) {
   }
 }
 
+function exportAnalysis() {
+  if (!latestPayload) {
+    showError("Run an analysis before exporting a report.");
+    return;
+  }
+  const blob = new Blob([JSON.stringify(latestPayload, null, 2)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "ros-trace-report.json";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showToast("JSON report exported");
+}
+
 function render(payload) {
+  latestPayload = payload;
+  $("export-button").hidden = false;
   const report = payload.report;
   const summary = report.summary;
   const counts = summary.severity_counts || {};
@@ -174,7 +251,8 @@ function render(payload) {
   $("warning-count").textContent = counts.WARN || 0;
   $("node-count").textContent = (summary.nodes || []).length;
   $("incident-count").textContent = summary.incident_count || 0;
-  $("analysis-state").textContent = payload.ai_used ? "GPT-5.6 ENRICHED" : "OFFLINE COMPLETE";
+  const completedModel = payload.ai && payload.ai.model ? payload.ai.model.toUpperCase() : "AI";
+  $("analysis-state").textContent = payload.ai_used ? `${completedModel} ENRICHED` : "OFFLINE COMPLETE";
 
   const range = summary.time_range || {};
   $("timeline-span").textContent = range.start ? `${range.start} → ${range.end}` : `${summary.total_lines || 0} lines`;
@@ -224,6 +302,7 @@ async function analyze() {
     }
     render(await response.json());
     results.scrollIntoView({behavior: "smooth", block: "start"});
+    $("results-title").focus({preventScroll: true});
   } catch (error) {
     showError(error.message || "Analysis failed");
     $("empty-state").hidden = false;
@@ -249,11 +328,13 @@ function loadFile(file) {
   reader.readAsText(file);
 }
 
-sampleButtons.forEach((button) => button.addEventListener("click", loadSample));
+$("sample-button").addEventListener("click", loadSample);
+$("empty-sample-button").addEventListener("click", runSampleAnalysis);
 $("upload-button").addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", () => loadFile(fileInput.files[0]));
 input.addEventListener("input", () => updateInputMeta($("file-name").textContent));
 analyzeButton.addEventListener("click", analyze);
+$("export-button").addEventListener("click", exportAnalysis);
 
 for (const eventName of ["dragenter", "dragover"]) {
   document.addEventListener(eventName, (event) => { event.preventDefault(); document.body.classList.add("dragging"); });
@@ -262,4 +343,5 @@ for (const eventName of ["dragleave", "drop"]) {
   document.addEventListener(eventName, (event) => { event.preventDefault(); document.body.classList.remove("dragging"); });
 }
 document.addEventListener("drop", (event) => loadFile(event.dataTransfer.files[0]));
+loadCapabilities();
 updateInputMeta();

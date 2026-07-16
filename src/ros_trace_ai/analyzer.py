@@ -11,17 +11,24 @@ import re
 from typing import Any, Iterable
 
 SEVERITIES = ("DEBUG", "INFO", "WARN", "ERROR", "FATAL")
+MAX_RETURNED_ENTRIES = 2_000
+MAX_EVIDENCE_PER_INCIDENT = 50
+MAX_RETURNED_INCIDENTS = 500
 
 # ``message`` is deliberately greedy: ROS messages often contain colons.
+_ANSI_CSI = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+_EXIT_CODE = re.compile(
+    r"\bexit code\s*(?P<code>[+-]?(?:0x[0-9a-f]+|\d+))\b", re.IGNORECASE
+)
 _ROS2_LINE = re.compile(
     r"^\[(?P<process>[^\]]+)\]\s*"
-    r"\[(?P<severity>DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\]\s*"
+    r"\[\s*(?P<severity>DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\s*\]\s*"
     r"\[(?P<timestamp>[^\]]+)\]\s*"
     r"\[(?P<node>[^\]]+)\]\s*:\s*(?P<message>.*)$",
     re.IGNORECASE,
 )
 _ROS_LINE = re.compile(
-    r"^\[(?P<severity>DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\]\s*"
+    r"^\[\s*(?P<severity>DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\s*\]\s*"
     r"\[(?P<timestamp>[^\]]+)\]"
     r"(?:\s*\[(?P<node>[^\]]+)\])?\s*:\s*(?P<message>.*)$",
     re.IGNORECASE,
@@ -57,8 +64,9 @@ def parse_line(line: str, line_number: int | None = None) -> LogEntry:
     """
 
     raw = line.rstrip("\r\n")
+    match_text = _ANSI_CSI.sub("", raw).strip()
     for pattern in (_ROS2_LINE, _ROS_LINE):
-        match = pattern.match(raw.strip())
+        match = pattern.match(match_text)
         if match:
             fields = match.groupdict()
             return LogEntry(
@@ -120,6 +128,17 @@ _RULES = (
         "Inspect the frame tree with `ros2 run tf2_tools view_frames` and verify the expected static or dynamic broadcaster.",
     ),
     _Rule(
+        "qos_incompatibility",
+        _patterns(
+            r"\bincompatible\b.*\bqos\b",
+            r"\bqos\b.*\bincompatible\b",
+            r"\brequested (?:deadline|reliability|durability)\b.*\boffered\b",
+        ),
+        "DDS QoS policies are incompatible",
+        "The publisher and subscriber use incompatible reliability, durability, deadline, or history policies, so discovery may succeed while messages are not delivered.",
+        "Run `ros2 topic info <topic> --verbose`, compare offered and requested QoS profiles, and align the publisher and subscriber policies.",
+    ),
+    _Rule(
         "missing_topic",
         _patterns(
             r"\bno publishers?\b",
@@ -131,16 +150,50 @@ _RULES = (
         "Run `ros2 topic list` and `ros2 topic info <topic> --verbose`; confirm remappings, namespaces, and publisher health.",
     ),
     _Rule(
+        "lifecycle_transition",
+        _patterns(
+            r"\b(?:lifecycle|transition)\b(?!.*\b(?:without (?:any )?|no )(?:error|failure)\b).*\b(?:fail|failed|failure|error)\b",
+            r"\bfailed to transition\b.*\b(?:active|inactive|configured|finalized)\b",
+            r"\bnode\b.*\b(?:unconfigured|inactive)\b.*\b(?:unexpected|stuck|remain)\b",
+        ),
+        "Lifecycle node failed to reach its target state",
+        "A managed node could not complete a configure, activate, deactivate, or cleanup transition, often because a dependency or resource initialization failed.",
+        "Run `ros2 lifecycle get <node>` and `ros2 lifecycle list <node>`, then inspect the node logs immediately before the failed transition.",
+    ),
+    _Rule(
+        "resource_exhaustion",
+        _patterns(
+            r"\b(?:out of memory|cannot allocate memory|bad_alloc|oom[- ]killer)\b",
+            r"\bno space left on device\b",
+            r"\b(?:too many open files|resource temporarily unavailable)\b",
+        ),
+        "Host resource exhaustion interrupted the node",
+        "The process could not obtain required memory, disk space, file descriptors, or another operating-system resource.",
+        "Check memory, disk, and file-descriptor pressure on the host; identify the growing process or file set before restarting the node.",
+    ),
+    _Rule(
         "node_crash",
         _patterns(
-            r"\bprocess\b.*\b(?:has died|died|exited|terminated|crashed)\b",
+            r"\bprocess\b.*\b(?:has died|died|terminated|crashed)\b",
+            r"\bprocess\b.*\bexited\b.*\bexit code\s*[+-]?(?:0x[0-9a-f]+|\d+)",
             r"\bnode\b.*\b(?:has died|crashed|segmentation fault)\b",
             r"\bsegmentation fault\b",
-            r"\bexit code\s*-?\d+",
+            r"\bexit code\s*[+-]?(?:0x[0-9a-f]+|\d+)",
         ),
         "Node process exited unexpectedly",
         "A ROS node crashed or was terminated; nearby stderr and its exit code normally identify the immediate failure.",
         "Restart the node with debug logging, inspect the preceding stderr, and check its exit code and core dump.",
+    ),
+    _Rule(
+        "control_loop_overrun",
+        _patterns(
+            r"\b(?:control|controller|costmap|update) loop\b.*\b(?:missed|overrun|late)\b",
+            r"\bmissed (?:its )?desired rate\b",
+            r"\bloop rate\b.*\b(?:missed|overrun|below)\b",
+        ),
+        "Control loop missed its target rate",
+        "The controller or costmap update loop could not finish within its configured period, commonly because of CPU pressure, blocking callbacks, or expensive map processing.",
+        "Measure CPU load and callback latency, inspect the configured update frequency, then profile the slow controller or costmap plugins before lowering the target rate.",
     ),
     _Rule(
         "timeout",
@@ -154,7 +207,25 @@ _RULES = (
 
 def _classify(entry: LogEntry) -> _Rule | None:
     searchable = f"{entry.process or ''} {entry.node or ''} {entry.message}"
-    return next((rule for rule in _RULES if rule.matches(searchable)), None)
+    exit_match = _EXIT_CODE.search(searchable)
+    clean_exit = False
+    if exit_match:
+        token = exit_match.group("code")
+        base = 16 if token.lower().lstrip("+-").startswith("0x") else 10
+        clean_exit = int(token, base) == 0 and not re.search(
+            r"\b(?:has died|died|terminated|crashed|segmentation fault)\b",
+            searchable,
+            re.IGNORECASE,
+        )
+    return next(
+        (
+            rule
+            for rule in _RULES
+            if not (clean_exit and rule.kind == "node_crash")
+            and rule.matches(searchable)
+        ),
+        None,
+    )
 
 
 def _normalize(message: str) -> str:
@@ -217,11 +288,15 @@ def _build_incidents(entries: Iterable[LogEntry]) -> list[dict[str, Any]]:
                 "root_cause": rule.root_cause,
                 "recommendation": rule.recommendation,
                 "evidence": [],
+                "evidence_omitted": 0,
             }
         incident = grouped[key]
         incident["count"] += 1
         incident["last_timestamp"] = entry.timestamp or incident["last_timestamp"]
-        incident["evidence"].append(_evidence(entry))
+        if len(incident["evidence"]) < MAX_EVIDENCE_PER_INCIDENT:
+            incident["evidence"].append(_evidence(entry))
+        else:
+            incident["evidence_omitted"] += 1
         # Preserve the highest severity observed in a mixed group.
         if SEVERITIES.index(entry.severity) > SEVERITIES.index(incident["severity"]):
             incident["severity"] = entry.severity
@@ -256,9 +331,11 @@ def analyze_log(text: str) -> dict[str, Any]:
                 "end": timestamps[-1] if timestamps else None,
             },
             "incident_count": len(incidents),
+            "incidents_omitted": max(0, len(incidents) - MAX_RETURNED_INCIDENTS),
+            "entries_omitted": max(0, len(entries) - MAX_RETURNED_ENTRIES),
         },
-        "incidents": incidents,
-        "entries": [entry.to_dict() for entry in entries],
+        "incidents": incidents[:MAX_RETURNED_INCIDENTS],
+        "entries": [entry.to_dict() for entry in entries[:MAX_RETURNED_ENTRIES]],
     }
 
 
